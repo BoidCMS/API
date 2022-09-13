@@ -1,13 +1,12 @@
 <?php defined( 'App' ) or die( 'BoidCMS' );
 /**
  *
- * Api - an easy way to integrate other systems with your site
+ * API - an easy way to integrate other systems with your site
  *
  * @package BoidCMS
- * @subpackage Api
+ * @subpackage API
  * @author Shoaiyb Sysa
- * @licence GPLV3
- * @version 1.0
+ * @version 1.0.0
  */
 
 global $App;
@@ -18,7 +17,7 @@ $App->set_action( 'render', 'api_render' );
 $App->set_action( 'admin', 'api_admin' );
 
 /**
- * Initiate Api, first time install
+ * Initiate API, first time install
  * @param string $plugin
  * @return void
  */
@@ -43,7 +42,7 @@ function api_shut( string $plugin ): void {
 }
 
 /**
- * Api endpoints
+ * API endpoints
  * @return string
  */
 function api_taken(): string {
@@ -56,7 +55,7 @@ function api_taken(): string {
 }
 
 /**
- * Api routing
+ * API route
  * @return string
  */
 function api_render(): void {
@@ -98,17 +97,18 @@ function api_admin(): void {
   global $App, $layout, $page;
   switch ( $page ) {
     case 'api':
-      $layout[ 'title' ] = 'Api';
+      $layout[ 'title' ] = 'API';
       $layout[ 'content' ] = '
       <form action="' . $App->admin_url( '?page=api', true ) . '" method="post">
+        <div class="ss-alert ss-info ss-mobile ss-w-5 ss-mx-auto">
+          <h4 class="ss-monospace">Endpoint URL</h4>
+          <p class="sss-alert ss-small ss-ovf-scroll">' . $App->url( 'api/{endpoint}' ) . '</p>
+          <small class="ss-label">Leave empty to regenerate new token.</small>
+        </div>
         <label for="api_token" class="ss-label">Token</label>
-        <p class="ss-container ss-alert ss-info ss-mobile ss-w-5 ss-mx-auto">
-          <small>Leave empty to regenerate new token.</small>
-        </p>
         <input type="text" id="api_token" name="api_token" value="' . $App->esc( $App->get( 'api_token' ) ) . '" class="ss-input ss-mobile ss-w-6 ss-mx-auto">
-        ' . $App->get_action( 'form' ) . '
         <input type="hidden" name="token" value="' . $App->token() . '">
-        <input type="submit" name="save" value="Save" class="ss-btn ss-mobile ss-w-6">
+        <input type="submit" name="save" value="Save" class="ss-btn ss-mobile ss-w-5">
       </form>';
       if ( isset( $_POST[ 'save' ] ) ) {
         $App->auth();
@@ -128,7 +128,7 @@ function api_admin(): void {
 }
 
 /**
- * Api pages handler
+ * API pages handler
  * @return void
  */
 function api_pages(): void {
@@ -163,7 +163,12 @@ function api_pages(): void {
     $inputs[ 'pub' ] ??= false;
     $inputs[ 'type' ] ??= 'page';
     $inputs[ 'title' ] ??= 'Page';
+    $inputs[ 'descr' ] ??= '';
+    $inputs[ 'keywords' ] ??= '';
+    $inputs[ 'content' ] ??= '';
+    $inputs[ 'thumb' ] ??= '';
     $inputs[ 'date' ] = date( 'Y-m-d\TH:i:s' );
+    $inputs[ 'tpl' ] ??= '';
     $inputs[ 'pub' ] = filter_var( $inputs[ 'pub' ], FILTER_VALIDATE_BOOL );
     unset( $inputs[ 'offset' ], $inputs[ 'limit' ] );
     $slug = $App->slugify( $inputs[ 'title' ] );
@@ -255,7 +260,7 @@ function api_pages(): void {
 }
 
 /**
- * Api media handler
+ * API media handler
  * @return void
  */
 function api_medias(): void {
@@ -321,7 +326,7 @@ function api_medias(): void {
 }
 
 /**
- * Api themes handler
+ * API themes handler
  * @return void
  */
 function api_themes(): void {
@@ -344,7 +349,7 @@ function api_themes(): void {
 }
 
 /**
- * Api plugins handler
+ * API plugins handler
  * @return void
  */
 function api_plugins(): void {
@@ -431,7 +436,7 @@ function api_plugins(): void {
 }
 
 /**
- * Api settings handler
+ * API settings handler
  * @return void
  */
 function api_settings(): void {
@@ -537,27 +542,10 @@ function api_inputs(): array {
  */
 function api_auth(): void {
   global $App;
-  $token = $App->get( 'api_token' );
   $inputs = api_inputs();
-  if ( empty( $inputs ) ) {
-    api_response(
-      array(
-        'code' => 400,
-        'status' => false,
-        'message' => 'Missing method inputs',
-        'result' => array()
-      )
-    );
-  } else if ( ! isset( $inputs[ 'token' ] ) ) {
-    api_response(
-      array(
-        'code' => 401,
-        'status' => false,
-        'message' => 'Missing token',
-        'result' => array()
-      )
-    );
-  } else if ( ! hash_equals( $token, $inputs[ 'token' ] ) ) {
+  $inputs[ 'token' ] ??= '';
+  $token = $App->get( 'api_token' );
+  if ( ! hash_equals( $token, $inputs[ 'token' ] ) ) {
     api_response(
       array(
         'code' => 401,
