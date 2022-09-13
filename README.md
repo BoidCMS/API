@@ -3,5 +3,5 @@ The BoidCMS API plugin is designed to provide an easy way to integrate other sys
 With this plugin, you can retrieve or update data from the database with a simple HTTP request.
 
 ## Install
-Download the zip file of the plugin on this repo.
-Follow this [steps to install](https://boidcms.github.io/#/plugins/).
+- Download the zip file of the plugin on this repo.
+- Follow this [steps to install](https://boidcms.github.io/#/plugins/).
