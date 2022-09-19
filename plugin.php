@@ -6,7 +6,7 @@
  * @package BoidCMS
  * @subpackage API
  * @author Shoaiyb Sysa
- * @version 1.0.0
+ * @version 0.1.0
  */
 
 global $App;
@@ -345,6 +345,37 @@ function api_themes(): void {
         )
       )
     );
+  } else if ( 'POST' === $method ) {
+    $theme = ( $inputs[ 'theme' ] ?? '' );
+    if ( ! in_array( $theme, $App->themes ) ) {
+      api_response(
+        array(
+          'code' => 200,
+          'status' => false,
+          'message' => 'Theme does not exist',
+          'result' => array()
+        )
+      );
+    } else {
+      if ( $App->set( $theme, 'theme' ) ) {
+        api_response(
+          array(
+            'code' => 200,
+            'status' => true,
+            'message' => 'Theme activated',
+            'result' => array()
+          )
+        );
+      }
+      api_response(
+        array(
+          'code' => 200,
+          'status' => false,
+          'message' => 'Theme not activated',
+          'result' => array()
+        )
+      );
+    }
   }
 }
 
