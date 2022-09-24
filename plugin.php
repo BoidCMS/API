@@ -173,6 +173,7 @@ function api_pages(): void {
     unset( $inputs[ 'offset' ], $inputs[ 'limit' ] );
     $slug = $App->slugify( $inputs[ 'title' ] );
     if ( $App->create_page( $slug, $inputs ) ) {
+      $App->get_action( 'create_success', $slug );
       api_response(
         array(
           'code' => 200,
@@ -206,6 +207,7 @@ function api_pages(): void {
     } else {
       unset( $inputs[ 'slug' ], $inputs[ 'offset' ], $inputs[ 'limit' ] );
       if ( $App->update_page( $page, $slug, $inputs ) ) {
+        $App->get_action( 'update_success', $page );
         api_response(
           array(
             'code' => 200,
@@ -238,6 +240,7 @@ function api_pages(): void {
       );
     } else {
       if ( $App->delete_page( $page ) ) {
+        $App->get_action( 'delete_success', $page );
         api_response(
           array(
             'code' => 200,
@@ -549,7 +552,7 @@ function api_paginate( array $data ): array {
  * @return array
  */
 function api_inputs(): array {
-  switch( api_method() ) {
+  switch ( api_method() ) {
     case 'GET':
     case 'DELETE':
       return $_GET;
