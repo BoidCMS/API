@@ -139,7 +139,8 @@ function api_head(): string {
   $base = $App->url( 'api/' . API_VERSION . '/' );
   $data = ( $App->data()[ 'pages' ][ $App->page ] ?? array() );
   $endpoint = ( empty( $data ) ? '' : 'pages?page=' . $App->page );
-  return sprintf( '<link rel="alternate api" type="application/json" href="%s%s">', $base, $endpoint );
+  $format = '<link rel="alternate api" type="application/json" href="%s%s">';
+  return sprintf( $format, $base, $endpoint );
 }
 
 /**
@@ -797,23 +798,23 @@ function api_request(): array {
  * @return void
  */
 function api_response( array $response ): void {
-  $response = api_exchange_filter( $response );
-  http_response_code( $response[ 'code' ]  );
+  $resp = api_exchange_filter(  $response  );
+  http_response_code(   $resp[  'code'  ]  );
   header( 'Access-Control-Allow-Origin: *' );
   header( 'Content-Type: application/json' );
-  exit( json_encode( $response ) );
+  exit(     json_encode(    $resp    )     );
 }
 
 /**
  * Request and Response Filter
- * @param array $request_or_response
+ * @param array $req_or_resp
  * @param string $is_request
  * @return array
  */
-function api_exchange_filter( array $request_or_response, bool $is_request = false ): array {
+function api_exchange_filter( array $req_or_resp, bool $is_req = false ): array {
   global $App;
-  $action = ( $is_request ? 'api_request' : 'api_response' );
-  return $App->get_filter( $request_or_response, $action );
+  $action = ( $is_req ? 'api_request' : 'api_response' );
+  return $App->get_filter( $req_or_resp, $action );
 }
 
 /**
