@@ -1,7 +1,7 @@
 <?php defined( 'App' ) or die( 'BoidCMS' );
 /**
  *
- * The API plugin is an easy and efficient way to implement API functionality into your site, allowing for seamless integration with other systems.
+ * Implement API functionality into your site, allowing for seamless integration with other systems.
  *
  * @package Plugin_API
  * @author Shuaib Yusuf Shuaib
@@ -9,27 +9,30 @@
  */
 
 global $App;
+define( 'API_VERSION', 'v1' );
+define( 'API_PLUGIN_VERSION', '0.1.0' );
 $App->set_action( 'install', 'api_install' );
 $App->set_action( 'uninstall', 'api_uninstall' );
+$App->set_action( 'l10n_global', 'api_translate' );
 $App->set_action( 'slug_taken', 'api_routes' );
 $App->set_action( 'render', 'api_render', 0 );
 $App->set_action( 'site_head', 'api_head' );
 $App->set_action( 'admin', 'api_admin' );
 
 /**
- * Initiate API, first time install
+ * Initialize API, first time install
  * @param string $plugin
  * @return void
  */
 function api_install( string $plugin ): void {
   global $App;
   if ( 'api' === $plugin ) {
-    $api = array();
-    $api[ 'rate' ] = 10;
-    $api[ 'limit' ] = 20;
-    $api[ 'read' ] = bin2hex( random_bytes(32) );
-    $api[ 'write' ] = bin2hex( random_bytes(32) );
-    $App->set( $api, 'api' );
+    $config = array();
+    $config[ 'rate' ] = 10;
+    $config[ 'limit' ] = 20;
+    $config[ 'read' ] = bin2hex( random_bytes(32) );
+    $config[ 'write' ] = bin2hex( random_bytes(32) );
+    $App->set( $config, 'api' );
   }
 }
 
@@ -46,96 +49,84 @@ function api_uninstall( string $plugin ): void {
 }
 
 /**
+ * Translation
+ * @param array $l10n
+ * @param string $lang
+ * @param string $slug
+ * @return array
+ */
+function api_translate( array $l10n, string $lang, string $slug ): ?array {
+  if ( 0 === strpos( $slug, 'api' ) ) {
+    $file = ( __DIR__ . '/l10n.php' );
+    $translation = (  include $file );
+    $translation[ $lang ] ??= array();
+    return  ( $translation[ $lang ] );
+  }
+  return [];
+}
+
+/**
  * API routes
  * @return string
  */
 function api_routes(): string {
-  return ',
-  api/v1/,
-  api/v1/pages,
-  api/v1/pages/,
-  api/v1/medias,
-  api/v1/medias/,
-  api/v1/themes,
-  api/v1/themes/,
-  api/v1/plugins,
-  api/v1/plugins/,
-  api/v1/settings,
-  api/v1/settings/,
-  api/v1/slugify,
-  api/v1/slugify/,';
+  $routes[] = 'api/' . API_VERSION . '/';
+  $routes[] = 'api/' . API_VERSION . '/pages';
+  $routes[] = 'api/' . API_VERSION . '/pages/';
+  $routes[] = 'api/' . API_VERSION . '/medias';
+  $routes[] = 'api/' . API_VERSION . '/medias/';
+  $routes[] = 'api/' . API_VERSION . '/themes';
+  $routes[] = 'api/' . API_VERSION . '/themes/';
+  $routes[] = 'api/' . API_VERSION . '/plugins';
+  $routes[] = 'api/' . API_VERSION . '/plugins/';
+  $routes[] = 'api/' . API_VERSION . '/settings';
+  $routes[] = 'api/' . API_VERSION . '/settings/';
+  $routes[] = 'api/' . API_VERSION . '/slugify';
+  $routes[] = 'api/' . API_VERSION . '/slugify/';
+  return sprintf( ',%s,', join( ',', $routes ) );
 }
 
 /**
  * API router
- * @return string
+ * @return void
  */
 function api_render(): void {
-  global $App;
-  switch ( $App->page ) {
-    case 'api/v1/':
-      api_rate_limit();
-      api_reference();
-      api_inv();
-      break;
-    case 'api/v1/pages':
-    case 'api/v1/pages/':
-      api_rate_limit();
-      api_auth();
-      api_pages();
-      api_inv();
-      break;
-    case 'api/v1/medias':
-    case 'api/v1/medias/':
-      api_rate_limit();
-      api_auth();
-      api_medias();
-      api_inv();
-      break;
-    case 'api/v1/themes':
-    case 'api/v1/themes/':
-      api_rate_limit();
-      api_auth();
-      api_themes();
-      api_inv();
-      break;
-    case 'api/v1/plugins':
-    case 'api/v1/plugins/':
-      api_rate_limit();
-      api_auth();
-      api_plugins();
-      api_inv();
-      break;
-    case 'api/v1/settings':
-    case 'api/v1/settings/':
-      api_rate_limit();
-      api_auth();
-      api_settings();
-      api_inv();
-      break;
-    case 'api/v1/slugify':
-    case 'api/v1/slugify/':
-      api_rate_limit();
-      api_auth();
-      api_slugify();
-      api_inv();
-      break;
-    default:
-      $regexp = '/^(?<endpoint>api\/(?<version>v[1-9]+)\/(?<handle>.+?)\/?)$/';
-      if ( preg_match( $regexp, $App->page, $match ) ) {
-        $match = array_filter( $match, 'is_string', ARRAY_FILTER_USE_KEY );
-        api_rate_limit();
-        api_response(
-          array(
-            'code' => 404,
-            'status' => false,
-            'message' => 'Invalid endpoint',
-            'data' => $match
-          )
-        );
-        api_inv();
-      }
-      break;
+  if ( is_api( null, $match ) ) {
+    api_rate_limit();
+    api_authenticate();
+    switch ( $match[ 'endpoint' ] ) {
+      case 'api/' . API_VERSION . '/':
+        api_reference();
+        break;
+      case 'api/' . API_VERSION . '/pages':
+      case 'api/' . API_VERSION . '/pages/':
+        api_pages();
+        break;
+      case 'api/' . API_VERSION . '/medias':
+      case 'api/' . API_VERSION . '/medias/':
+        api_medias();
+        break;
+      case 'api/' . API_VERSION . '/themes':
+      case 'api/' . API_VERSION . '/themes/':
+        api_themes();
+        break;
+      case 'api/' . API_VERSION . '/plugins':
+      case 'api/' . API_VERSION . '/plugins/':
+        api_plugins();
+        break;
+      case 'api/' . API_VERSION . '/settings':
+      case 'api/' . API_VERSION . '/settings/':
+        api_settings();
+        break;
+      case 'api/' . API_VERSION . '/slugify':
+      case 'api/' . API_VERSION . '/slugify/':
+        api_slugify();
+        break;
+      default:
+        api_invalid( $match );
+        break;
+    }
+    api_not_allowed();
   }
 }
 
@@ -145,9 +136,9 @@ function api_render(): void {
  */
 function api_head(): string {
   global $App;
-  $base = $App->url( 'api/v1/' );
+  $base = $App->url( 'api/' . API_VERSION . '/' );
   $data = ( $App->data()[ 'pages' ][ $App->page ] ?? array() );
-  $endpoint = ( ( empty( $data ) || $App->page === '404' ) ? '' : 'pages?page=' . $App->page );
+  $endpoint = ( empty( $data ) ? '' : 'pages?page=' . $App->page );
   return sprintf( '<link rel="alternate api" type="application/json" href="%s%s">', $base, $endpoint );
 }
 
@@ -165,16 +156,16 @@ function api_admin(): void {
       <form action="' . $App->admin_url( '?page=api', true ) . '" method="post">
         <label for="read" class="ss-label">Read-only Token</label>
         <input type="text" id="read" name="api[read]" value="' . $App->esc( $api[ 'read' ] ) . '" class="ss-input ss-mobile ss-w-6 ss-mx-auto">
-        <p class="ss-small ss-gray ss-mb-5">This is the API readonly token.<br>Leave empty or set to "0" (zero) to generate new token.</p>
+        <p class="ss-small ss-gray ss-mb-5">This is the API read-only token.<br> If left empty or set to "0" (zero), a new token will be generated.</p>
         <label for="write" class="ss-label">Write Access Token</label>
         <input type="text" id="write" name="api[write]" value="' . $App->esc( $api[ 'write' ] ) . '" class="ss-input ss-mobile ss-w-6 ss-mx-auto">
-        <p class="ss-small ss-gray ss-mb-5">This is the API write access token, <b>must be protected like a password</b>.<br>Leave empty or set to "0" (zero) to generate new token.</p>
+        <p class="ss-small ss-gray ss-mb-5">This is the API write access token, which provides full access to modify your data.<br> <b>Treat it like a password and keep it safe.</b><br> If left empty or set to "0" (zero), a new token will be generated.</p>
         <label for="rate" class="ss-label">Rate Limit</label>
         <input type="number" id="rate" name="api[rate]" value="' . $api[ 'rate' ] . '" class="ss-input ss-mobile ss-w-6 ss-mx-auto">
-        <p class="ss-small ss-gray ss-mb-5">This is the maximum number of requests allowed per minute.<br>Leave empty or set to "0" (zero) to disable rate limiting.</p>
+        <p class="ss-small ss-gray ss-mb-5">Prevent API abuse by setting the maximum number of requests allowed per minute.<br> If you don\'t want to limit the usage, simply leave this field empty or set it to "0" (zero).</p>
         <label for="limit" class="ss-label">Pagination Limit</label>
         <input type="number" id="limit" name="api[limit]" min="1" value="' . $api[ 'limit' ] . '" class="ss-input ss-mobile ss-w-6 ss-mx-auto" required>
-        <p class="ss-small ss-gray ss-mb-5">This is the maximum number of items to return per pagination.</p>
+        <p class="ss-small ss-gray ss-mb-5">This option sets the maximum number of items to be displayed per page during pagination.<br> Adjust it to your desired limit.</p>
         <input type="hidden" name="token" value="' . $App->token() . '">
         <input type="submit" name="save" value="Save" class="ss-btn ss-mobile ss-w-5">
       </form>';
@@ -206,26 +197,35 @@ function api_pages(): void {
   global $App;
   $data = $App->data();
   $method = api_method();
-  $inputs = api_inputs();
+  $inputs = api_request();
   $page = api_input_string( 'page' );
+  $page = $App->esc_slug( $page );
   if ( 'GET' === $method ) {
+    $raw = api_input_bool( 'raw' );
     if ( isset( $data[ 'pages' ][ $page ] ) ) {
+      if ( $raw ) $fields = $data[ 'pages' ][ $page ];
+      $fields ??= api_page_fields( $page );
       api_response(
         array(
           'code' => 200,
           'status' => true,
-          'message' => 'Page',
-          'data' => $data[ 'pages' ][ $page ]
+          'message' => sprintf( 'Page "%s"', $page ),
+          'data' => api_field_selection( $fields )
         )
       );
     }
+    if ( ! $raw ) {
+      $slugs = array_keys( $data[ 'pages' ] );
+      $fields = array_map( 'api_page_fields', $slugs );
+    }
+    $fields ??= $data[ 'pages' ];
     api_response(
       array(
         'code' => 200,
         'status' => true,
         'message' => 'Pages',
-        'data' => api_paginate(
-          $data[ 'pages' ]
+        'data' => api_pagination(
+          $fields
         )
       )
     );
@@ -262,27 +262,29 @@ function api_pages(): void {
       )
     );
   } else if ( 'PUT' === $method ) {
-    $slug = $App->esc_slug( $page );
     if ( ! isset( $data[ 'pages' ][ $page ] ) ) {
       api_response(
         array(
           'code' => 404,
           'status' => false,
           'message' => 'Page does not exist',
-          'data' => array()
+          'data' => array(
+            'slug' => $page
+          )
         )
       );
     } else {
+      $pub = $data[ 'pages' ][ $page ][ 'pub' ];
       $inputs[ 'data' ] = api_input_array( 'data' );
-      $inputs[ 'data' ][ 'pub' ] = api_data_input_bool( 'pub' );
-      if ( $App->update_page( $page, $slug, $inputs[ 'data' ] ) ) {
+      $inputs[ 'data' ][ 'pub' ] = api_data_input_bool( 'pub', $pub );
+      if ( $App->update_page( $page, $page, $inputs[ 'data' ] ) ) {
         api_response(
           array(
             'code' => 200,
             'status' => true,
             'message' => 'Page updated',
             'data' => array(
-              'slug' => $slug
+              'slug' => $page
             )
           )
         );
@@ -292,7 +294,9 @@ function api_pages(): void {
           'code' => 200,
           'status' => false,
           'message' => 'Page not updated',
-          'data' => array()
+          'data' => array(
+            'slug' => $page
+          )
         )
       );
     }
@@ -303,7 +307,9 @@ function api_pages(): void {
           'code' => 404,
           'status' => false,
           'message' => 'Page does not exist',
-          'data' => array()
+          'data' => array(
+            'slug' => $page
+          )
         )
       );
     } else {
@@ -313,7 +319,9 @@ function api_pages(): void {
             'code' => 200,
             'status' => true,
             'message' => 'Page deleted',
-            'data' => array()
+            'data' => array(
+              'slug' => $page
+            )
           )
         );
       }
@@ -322,7 +330,9 @@ function api_pages(): void {
           'code' => 200,
           'status' => false,
           'message' => 'Page not deleted',
-          'data' => array()
+          'data' => array(
+            'slug' => $page
+          )
         )
       );
     }
@@ -335,17 +345,19 @@ function api_pages(): void {
  */
 function api_medias(): void {
   global $App;
+  $files = $App->medias;
   $method = api_method();
   if ( 'GET' === $method ) {
-    $files = $App->medias;
     $file = api_input_string( 'file' );
     if ( in_array( $file, $files ) ) {
       api_response(
         array(
           'code' => 200,
           'status' => true,
-          'message' => 'File',
-          'data' => api_media_info( $file )
+          'message' => sprintf( 'File "%s"', $file ),
+          'data' => api_field_selection(
+            api_media_info( $file )
+          )
         )
       );
     }
@@ -354,7 +366,7 @@ function api_medias(): void {
         'code' => 200,
         'status' => true,
         'message' => 'Media files',
-        'data' => api_paginate(
+        'data' => api_pagination(
           array_map(
             'api_media_info',
             array_values( $files )
@@ -375,7 +387,6 @@ function api_medias(): void {
       )
     );
   } else if ( 'DELETE' === $method ) {
-    $files = $App->medias;
     $file = api_input_string( 'file' );
     if ( ! in_array( $file, $files ) ) {
       api_response(
@@ -383,7 +394,9 @@ function api_medias(): void {
           'code' => 404,
           'status' => false,
           'message' => 'File does not exist',
-          'data' => array()
+          'data' => array(
+            'file' => $file
+          )
         )
       );
     } else {
@@ -393,7 +406,9 @@ function api_medias(): void {
             'code' => 200,
             'status' => true,
             'message' => 'File deleted',
-            'data' => array()
+            'data' => array(
+              'file' => $file
+            )
           )
         );
       }
@@ -402,7 +417,9 @@ function api_medias(): void {
           'code' => 200,
           'status' => false,
           'message' => 'File not deleted',
-          'data' => array()
+          'data' => array(
+            'file' => $file
+          )
         )
       );
     }
@@ -424,8 +441,10 @@ function api_themes(): void {
         array(
           'code' => 200,
           'status' => true,
-          'message' => 'Theme',
-          'data' => api_theme_info( $theme )
+          'message' => sprintf( 'Theme "%s"', $theme ),
+          'data' => api_field_selection(
+            api_theme_info( $theme )
+          )
         )
       );
     }
@@ -434,7 +453,7 @@ function api_themes(): void {
         'code' => 200,
         'status' => true,
         'message' => 'Themes',
-        'data' => api_paginate(
+        'data' => api_pagination(
           array_map(
             'api_theme_info',
             $themes
@@ -449,18 +468,22 @@ function api_themes(): void {
           'code' => 404,
           'status' => false,
           'message' => 'Theme does not exist',
-          'data' => array()
+          'data' => array(
+            'theme' => $theme
+          )
         )
       );
     } else {
       if ( $App->set( $theme, 'theme' ) ) {
-        $App->get_action( 'change_theme', $theme, 'api' );
+        $App->get_action( 'change_theme', $theme );
         api_response(
           array(
             'code' => 200,
             'status' => true,
             'message' => 'Theme activated',
-            'data' => array()
+            'data' => array(
+              'theme' => $theme
+            )
           )
         );
       }
@@ -469,7 +492,9 @@ function api_themes(): void {
           'code' => 200,
           'status' => false,
           'message' => 'Theme not activated',
-          'data' => array()
+          'data' => array(
+            'theme' => $theme
+          )
         )
       );
     }
@@ -483,16 +508,18 @@ function api_themes(): void {
 function api_plugins(): void {
   global $App;
   $method = api_method();
+  $plugins = $App->plugins;
   $plugin = api_input_string( 'plugin' );
   if ( 'GET' === $method ) {
-    $plugins = $App->plugins;
     if ( in_array( $plugin, $plugins ) ) {
       api_response(
         array(
           'code' => 200,
           'status' => true,
-          'message' => 'Plugin',
-          'data' => api_plugin_info( $plugin )
+          'message' => sprintf( 'Plugin "%s"', $plugin ),
+          'data' => api_field_selection(
+            api_plugin_info( $plugin )
+          )
         )
       );
     }
@@ -501,7 +528,7 @@ function api_plugins(): void {
         'code' => 200,
         'status' => true,
         'message' => 'Plugins',
-        'data' => api_paginate(
+        'data' => api_pagination(
           array_map(
             'api_plugin_info',
             $plugins
@@ -510,7 +537,7 @@ function api_plugins(): void {
       )
     );
   } else if ( 'PUT' === $method ) {
-    if ( ! in_array( $plugin, $App->plugins ) ) {
+    if ( ! in_array( $plugin, $plugins ) ) {
       api_response(
         array(
           'code' => 404,
@@ -538,7 +565,7 @@ function api_plugins(): void {
         array(
           'code' => 200,
           'status' => false,
-          'message' => 'Plugin not installed' . ( $App->installed( $plugin ) ? ', already installed' : '' ),
+          'message' => 'Plugin' . ( $App->installed( $plugin ) ? ' already installed' : 'not installed' ),
           'data' => array(
             'plugin' => $plugin
           )
@@ -546,7 +573,6 @@ function api_plugins(): void {
       );
     }
   } else if ( 'DELETE' === $method ) {
-    $plugin = api_input_string( 'plugin' );
     if ( ! $App->installed( $plugin ) ) {
       api_response(
         array(
@@ -599,11 +625,13 @@ function api_settings(): void {
         'code' => 200,
         'status' => true,
         'message' => 'Settings',
-        'data' => $data[ 'site' ]
+        'data' => api_field_selection(
+          $data[ 'site' ]
+        )
       )
     );
   } else if ( 'PUT' === $method ) {
-    $inputs = api_inputs();
+    $inputs = api_request();
     $inputs[ 'data' ] = api_input_array( 'data' );
     $data[ 'site' ] = array_merge( $data[ 'site' ], $inputs[ 'data' ] );
     if ( $App->save( $data ) ) {
@@ -634,8 +662,10 @@ function api_settings(): void {
 function api_slugify(): void {
   global $App;
   if ( 'GET' === api_method() ) {
+    $esc = api_input_bool( 'esc' );
     $text = api_input_string( 'text' );
-    $slug = $App->slugify( $text );
+    if ( $esc ) $slug = $App->esc_slug( $text );
+    $slug ??= $App->slugify( $text );
     api_response(
       array(
         'code' => 200,
@@ -664,31 +694,31 @@ function api_reference(): void {
         'message' => 'Routes',
         'data' => array(
           'self' => array(
-            'href' => $App->url( 'api/v1/' ),
+            'href' => $App->url( 'api/' . API_VERSION . '/' ),
             'methods' => [ 'GET' ]
           ),
-          'api/v1/pages' => array(
-            'href' => $App->url( 'api/v1/pages' ),
+          'api/' . API_VERSION . '/pages' => array(
+            'href' => $App->url( 'api/' . API_VERSION . '/pages' ),
             'methods' => [ 'GET', 'POST', 'PUT', 'DELETE' ]
           ),
-          'api/v1/medias' => array(
-            'href' => $App->url( 'api/v1/medias' ),
+          'api/' . API_VERSION . '/medias' => array(
+            'href' => $App->url( 'api/' . API_VERSION . '/medias' ),
             'methods' => [ 'GET', 'POST', 'DELETE' ]
           ),
-          'api/v1/themes' => array(
-            'href' => $App->url( 'api/v1/themes' ),
+          'api/' . API_VERSION . '/themes' => array(
+            'href' => $App->url( 'api/' . API_VERSION . '/themes' ),
             'methods' => [ 'GET', 'PUT' ]
           ),
-          'api/v1/plugins' => array(
-            'href' => $App->url( 'api/v1/plugins' ),
+          'api/' . API_VERSION . '/plugins' => array(
+            'href' => $App->url( 'api/' . API_VERSION . '/plugins' ),
             'methods' => [ 'GET', 'PUT', 'DELETE' ]
           ),
-          'api/v1/settings' => array(
-            'href' => $App->url( 'api/v1/settings' ),
+          'api/' . API_VERSION . '/settings' => array(
+            'href' => $App->url( 'api/' . API_VERSION . '/settings' ),
             'methods' => [ 'GET', 'PUT' ]
           ),
-          'api/v1/slugify' => array(
-            'href' => $App->url( 'api/v1/slugify' ),
+          'api/' . API_VERSION . '/slugify' => array(
+            'href' => $App->url( 'api/' . API_VERSION . '/slugify' ),
             'methods' => [ 'GET' ]
           )
         )
@@ -698,22 +728,29 @@ function api_reference(): void {
 }
 
 /**
- * JSON Response
- * @param array $data
- * @return void
+ * Alias of "api_route_match"
+ * @param string $route
+ * @param ?array $match
+ * @return bool
  */
-function api_response( array $data ): void {
+function is_api( ?string $route = null, ?array &$match = null ): bool {
   global $App;
-  http_response_code( $data[ 'code' ] );
-  header( 'Access-Control-Allow-Origin: *' );
-  header( 'Content-Type: application/json' );
-  $data = $App->_( $data, 'api_response' );
-  $json = json_encode( $data );
-  exit( $json );
+  $route ??= $App->page;
+  return api_route_match( $route, $match );
 }
 
 /**
- * Request method
+ * Apply translation to text
+ * @param string $text
+ * @return string
+ */
+function api_text( string $text ): string {
+  global $App;
+  return $App->get_filter( $text, 'l10n', 'api' );
+}
+
+/**
+ * Request Method
  * @return string
  */
 function api_method(): string {
@@ -721,28 +758,77 @@ function api_method(): string {
 }
 
 /**
- * Input parameters
+ * Tells whether route matches API
+ * @param string $route
+ * @param ?array $match
+ * @return bool
+ */
+function api_route_match( string $route, ?array &$match = null ) {
+  $regex = '@^(?<endpoint>api/(?<version>v[0-9\.]+)/(?<path>.*))$@';
+  $result = preg_match( $regex, $route, $match );
+  $match = array_filter( $match, 'is_string', ARRAY_FILTER_USE_KEY );
+  return ( bool ) $result;
+}
+
+/**
+ * API Request
  * @return array
  */
-function api_inputs(): array {
-  $input   = file_get_contents( 'php://input' );
-  $data    =        json_decode( $input, true );
+function api_request(): array {
+  $raw_request = file_get_contents( 'php://input' );
+  $request =      json_decode( $raw_request, true );
   if ( json_last_error() !== JSON_ERROR_NONE ) {
-    parse_str( $input, $data );
+    parse_str( $raw_request, $request );
   }
-  switch ( api_method() ) {
-    case 'GET':
-    case 'DELETE':
-      return array_merge( $_GET, $data );
-      break;
-    case 'POST':
-      return array_merge( $_POST, $data );
-      break;
-    case 'PUT':
-      return $data;
-      break;
+  $method = api_method();
+  if ( 'GET' === $method || 'DELETE' === $method ) {
+    $request = array_merge( $_GET, $request );
+  } else if ( 'POST' === $method ) {
+    $request = array_merge( $_POST, $request );
+  } else if ( 'PUT' !== $method ) {
+    $request = array();
   }
-  return array();
+  return api_exchange_filter( $request, true );
+}
+
+/**
+ * API JSON Response
+ * @param array $response
+ * @return void
+ */
+function api_response( array $response ): void {
+  $response = api_exchange_filter( $response );
+  http_response_code( $response[ 'code' ]  );
+  header( 'Access-Control-Allow-Origin: *' );
+  header( 'Content-Type: application/json' );
+  exit( json_encode( $response ) );
+}
+
+/**
+ * Request and Response Filter
+ * @param array $request_or_response
+ * @param string $is_request
+ * @return array
+ */
+function api_exchange_filter( array $request_or_response, bool $is_request = false ): array {
+  global $App;
+  $action = ( $is_request ? 'api_request' : 'api_response' );
+  return $App->get_filter( $request_or_response, $action );
+}
+
+/**
+ * Pages filtered values
+ * @param string $slug
+ * @return array
+ */
+function api_page_fields( string $slug ): array {
+  global $App;
+  $fields = array();
+  $pages = $App->data()[ 'pages' ];
+  foreach ( $pages[ $slug ] as $index => $value ) {
+    $fields[ $slug ][ $index ] = $App->page( $index, $slug );
+  }
+  return $fields;
 }
 
 /**
@@ -752,12 +838,11 @@ function api_inputs(): array {
  */
 function api_media_info( string $file ): array {
   global $App;
-  $link = $App->url( 'media/' . $file );
   $path = $App->root( 'media/' . $file );
   $finfo = new finfo( FILEINFO_MIME_TYPE );
   return array(
     'file' => $file,
-    'href' => $link,
+    'href' => $App->url( 'media/' . $file ),
     'date' => date( DATE_W3C, filemtime( $path ) ),
     'mime' => $finfo->file( $path )
   );
@@ -774,7 +859,8 @@ function api_theme_info( string $theme ): array {
   $current = $App->get( 'theme' );
   return array(
     'name' => ucwords( $name ),
-    'active' => ( $current === $theme )
+    'active' => ( $current === $theme ),
+    'slug' => $theme
   );
 }
 
@@ -789,16 +875,17 @@ function api_plugin_info( string $plugin ): array {
   $installed = $App->installed( $plugin );
   return array(
     'name' => ucwords( $name ),
-    'active' => $installed
+    'active' => $installed,
+    'slug' => $plugin
   );
 }
 
 /**
- * Paginate result
+ * API pagination
  * @param array $data
  * @return array
  */
-function api_paginate( array $data ): array {
+function api_pagination( array $data ): array {
   global $App;
   $max = $App->get( 'api' )[ 'limit' ];
   $offset  = api_input_integer( 'offset', 0 );
@@ -809,13 +896,29 @@ function api_paginate( array $data ): array {
 }
 
 /**
+ * API field selection
+ * @param array $data
+ * @return array
+ */
+function api_field_selection( array $data ): array {
+  $fields = api_input_array( 'fields' );
+  if ( empty( $fields ) )  return $data;
+  foreach ( $data as $index => $value ) {
+    if ( ! in_array( $index, $fields ) ) {
+      unset( $data[ $index ] );
+    }
+  }
+  return $data;
+}
+
+/**
  * API string input
  * @param string $index
  * @param string $def
  * @return mixed
  */
 function api_input_string( string $index, string $default = '', ?string $key = null ): string {
-  $input = ( api_inputs()[ $index ] ?? $default );
+  $input = ( api_request()[ $index ] ?? $default );
   return ( is_string( $input ) ? $input : $default );
 }
 
@@ -826,7 +929,7 @@ function api_input_string( string $index, string $default = '', ?string $key = n
  * @return int
  */
 function api_input_integer( string $index, int $default = 0 ): int {
-  $input = ( api_inputs()[ $index ] ?? $default );
+  $input = ( api_request()[ $index ] ?? $default );
   return ( is_numeric( $input ) ? $input : $default );
 }
 
@@ -837,7 +940,7 @@ function api_input_integer( string $index, int $default = 0 ): int {
  * @return array
  */
 function api_input_array( string $index, array $default = array() ): array {
-  $input = ( api_inputs()[ $index ] ?? $default );
+  $input = ( api_request()[ $index ] ?? $default );
   return ( is_array( $input ) ? $input : $default );
 }
 
@@ -848,7 +951,7 @@ function api_input_array( string $index, array $default = array() ): array {
  * @return bool
  */
 function api_input_bool( string $index, bool $default = false ): bool {
-  return filter_var( api_inputs()[ $index ] ?? $default, FILTER_VALIDATE_BOOL );
+  return filter_var( api_request()[ $index ] ?? $default, FILTER_VALIDATE_BOOL );
 }
 
 /**
@@ -895,18 +998,14 @@ function api_data_input_bool( string $index, bool $default = false ): bool {
 }
 
 /**
- * Rate limiting
+ * API rate limiting
  * @return void
  */
 function api_rate_limit(): void {
   global $App;
-  $conf = $App->get( 'api' );
-  if ( 0 === $conf[ 'rate' ] ) {
-    return;
-  }
-  $limit = $conf[ 'rate' ];
+  if ( 0 === ( $limit = $App->get( 'api' )[ 'rate' ] ) ) return;
   $data = ( $_SESSION[ 'api' ][ $App->page ] ?? null );
-  $data = ( $data ?? array( 'hits' => 0, 'time' => time() ) );
+  $data = ( $data ?? [ 'hits' => 0, 'time' => time() ] );
   $elapsed = ( time() - $data[ 'time' ] );
   if ( $elapsed > 60 ) {
     $data[ 'hits' ] = 1;
@@ -914,13 +1013,13 @@ function api_rate_limit(): void {
   } else {
     $data[ 'hits' ]++;
     if ( $data[ 'hits' ] > $limit ) {
-      $retry = 60 - $elapsed;
+      $retry = ( 60 - $elapsed );
       header( 'Retry-After: ' . $retry );
       api_response(
         array(
           'code' => 429,
           'status' => false,
-          'message' => sprintf( 'Rate limit exceeded, please wait "%d" seconds before making another request', $retry ),
+          'message' => 'Rate limit exceeded',
           'data' => array(
             'retry' => $retry
           )
@@ -935,23 +1034,22 @@ function api_rate_limit(): void {
  * Authentication
  * @return void
  */
-function api_auth(): void {
+function api_authenticate(): void {
   global $App;
-  $token = $App->get( 'api' )[ 'read' ];
-  $user_token = api_input_string( 'token' );
-  if ( ! hash_equals( $token, $user_token ) ) {
+  $api = $App->get( 'api' );
+  $token = api_input_string( 'token' );
+  if ( ! hash_equals( $api[ 'read' ], $token ) ) {
     api_response(
       array(
         'code' => 401,
         'status' => false,
-        'message' => 'Invalid token',
+        'message' => 'Invalid "token" token',
         'data' => array()
       )
     );
   } else if ( 'GET' !== api_method() ) {
-    $auth = $App->get( 'api' )[ 'write' ];
-    $user_auth = api_input_string( 'auth' );
-    if ( ! hash_equals( $auth, $user_auth ) ) {
+    $auth = api_input_string( 'auth' );
+    if ( ! hash_equals( $api[ 'write' ], $auth ) ) {
       api_response(
         array(
           'code' => 401,
@@ -965,10 +1063,26 @@ function api_auth(): void {
 }
 
 /**
- * Method not allowed
+ * Unhandled request
+ * @param array $data
  * @return void
  */
-function api_inv(): void {
+function api_invalid( array $data ): void {
+  api_response(
+    array(
+      'code' => 404,
+      'status' => false,
+      'message' => 'Invalid endpoint',
+      'data' => $data
+    )
+  );
+}
+
+/**
+ * Not allowed
+ * @return void
+ */
+function api_not_allowed(): void {
   api_response(
     array(
       'code' => 403,
