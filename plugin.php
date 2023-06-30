@@ -1,7 +1,7 @@
 <?php defined( 'App' ) or die( 'BoidCMS' );
 /**
  *
- * Implement API functionality into your site, allowing for seamless integration with other systems.
+ * API – A RESTful API for your website
  *
  * @package Plugin_API
  * @author Shuaib Yusuf Shuaib
@@ -26,6 +26,7 @@ $App->set_action( 'admin', 'api_admin' );
  */
 function api_install( string $plugin ): void {
   global $App;
+  $plugin = strtolower( $plugin );
   if ( 'api' === $plugin ) {
     $config = array();
     $config[ 'rate' ] = 10;
@@ -53,7 +54,7 @@ function api_uninstall( string $plugin ): void {
  * @param array $l10n
  * @param string $lang
  * @param string $slug
- * @return array
+ * @return ?array
  */
 function api_translate( array $l10n, string $lang, string $slug ): ?array {
   if ( 0 === strpos( $slug, 'api' ) ) {
@@ -62,7 +63,7 @@ function api_translate( array $l10n, string $lang, string $slug ): ?array {
     $translation[ $lang ] ??= array();
     return  ( $translation[ $lang ] );
   }
-  return [];
+  return null;
 }
 
 /**
@@ -87,7 +88,7 @@ function api_routes(): string {
 }
 
 /**
- * API router
+ * API routing
  * @return void
  */
 function api_render(): void {
@@ -157,16 +158,16 @@ function api_admin(): void {
       <form action="' . $App->admin_url( '?page=api', true ) . '" method="post">
         <label for="read" class="ss-label">Read-only Token</label>
         <input type="text" id="read" name="api[read]" value="' . $App->esc( $api[ 'read' ] ) . '" class="ss-input ss-mobile ss-w-6 ss-mx-auto">
-        <p class="ss-small ss-gray ss-mb-5">This is the API read-only token.<br> If left empty or set to "0" (zero), a new token will be generated.</p>
+        <p class="ss-small ss-mb-5">This is the API read-only token.<br> If left empty or set to "0" (zero), a new token will be generated.</p>
         <label for="write" class="ss-label">Write Access Token</label>
         <input type="text" id="write" name="api[write]" value="' . $App->esc( $api[ 'write' ] ) . '" class="ss-input ss-mobile ss-w-6 ss-mx-auto">
-        <p class="ss-small ss-gray ss-mb-5">This is the API write access token, which provides full access to modify your data.<br> <b>Treat it like a password and keep it safe.</b><br> If left empty or set to "0" (zero), a new token will be generated.</p>
+        <p class="ss-small ss-mb-5">This is the API write access token, which provides full access to modify your data.<br> <b>Treat it like a password and keep it safe.</b><br> If left empty or set to "0" (zero), a new token will be generated.</p>
         <label for="rate" class="ss-label">Rate Limit</label>
         <input type="number" id="rate" name="api[rate]" value="' . $api[ 'rate' ] . '" class="ss-input ss-mobile ss-w-6 ss-mx-auto">
-        <p class="ss-small ss-gray ss-mb-5">Prevent API abuse by setting the maximum number of requests allowed per minute.<br> If you don\'t want to limit the usage, simply leave this field empty or set it to "0" (zero).</p>
+        <p class="ss-small ss-mb-5">Prevent API abuse by setting the maximum number of requests allowed per minute.<br> If you don\'t want to limit the usage, simply leave this field empty or set it to "0" (zero).</p>
         <label for="limit" class="ss-label">Pagination Limit</label>
-        <input type="number" id="limit" name="api[limit]" min="1" value="' . $api[ 'limit' ] . '" class="ss-input ss-mobile ss-w-6 ss-mx-auto" required>
-        <p class="ss-small ss-gray ss-mb-5">This option sets the maximum number of items to be displayed per page during pagination.<br> Adjust it to your desired limit.</p>
+        <input type="number" id="limit" name="api[limit]" min="1" value="' . $api[ 'limit' ] . '" class="ss-input ss-mobile ss-w-6 ss-mx-auto">
+        <p class="ss-small ss-mb-5">This option sets the maximum number of items to be displayed per page during pagination.<br> Adjust it to your desired limit.</p>
         <input type="hidden" name="token" value="' . $App->token() . '">
         <input type="submit" name="save" value="Save" class="ss-btn ss-mobile ss-w-5">
       </form>';
@@ -761,11 +762,11 @@ function api_method(): string {
 /**
  * Tells whether route matches API
  * @param string $route
- * @param ?array $match
+ * @param ?array &$match
  * @return bool
  */
 function api_route_match( string $route, ?array &$match = null ) {
-  $regex = '@^(?<endpoint>api/(?<version>v[0-9\.]+)/(?<path>.*))$@';
+  $regex = '|^(?<endpoint>api/(?<version>v[0-9\.]+)/(?<slug>.*?)/?)$|';
   $result = preg_match( $regex, $route, $match );
   $match = array_filter( $match, 'is_string', ARRAY_FILTER_USE_KEY );
   return ( bool ) $result;
