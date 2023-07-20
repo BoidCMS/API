@@ -8,12 +8,14 @@
  * @version 0.1.0
  */
 
+// Ensure the plugin is installed properly
+if ( 'api' !== basename( __DIR__ ) ) return;
+
 global $App;
 define( 'API_VERSION', 'v1' );
 define( 'API_PLUGIN_VERSION', '0.1.0' );
 $App->set_action( 'install', 'api_install' );
 $App->set_action( 'uninstall', 'api_uninstall' );
-$App->set_action( 'l10n_global', 'api_translate' );
 $App->set_action( 'slug_taken', 'api_routes' );
 $App->set_action( 'render', 'api_render', 0 );
 $App->set_action( 'site_head', 'api_head' );
@@ -26,7 +28,6 @@ $App->set_action( 'admin', 'api_admin' );
  */
 function api_install( string $plugin ): void {
   global $App;
-  $plugin = strtolower( $plugin );
   if ( 'api' === $plugin ) {
     $config = array();
     $config[ 'rate' ] = 10;
@@ -47,23 +48,6 @@ function api_uninstall( string $plugin ): void {
   if ( 'api' === $plugin ) {
     $App->unset( 'api' );
   }
-}
-
-/**
- * Translation
- * @param array $l10n
- * @param string $lang
- * @param string $slug
- * @return ?array
- */
-function api_translate( array $l10n, string $lang, string $slug ): ?array {
-  if ( 0 === strpos( $slug, 'api' ) ) {
-    $file = ( __DIR__ . '/l10n.php' );
-    $translation = (  include $file );
-    $translation[ $lang ] ??= array();
-    return  ( $translation[ $lang ] );
-  }
-  return null;
 }
 
 /**
@@ -161,7 +145,7 @@ function api_admin(): void {
         <p class="ss-small ss-mb-5">This is the API read-only token.<br> If left empty or set to "0" (zero), a new token will be generated.</p>
         <label for="write" class="ss-label">Write Access Token</label>
         <input type="text" id="write" name="api[write]" value="' . $App->esc( $api[ 'write' ] ) . '" class="ss-input ss-mobile ss-w-6 ss-mx-auto">
-        <p class="ss-small ss-mb-5">This is the API write access token, which provides full access to modify your data.<br> <b>Treat it like a password and keep it safe.</b><br> If left empty or set to "0" (zero), a new token will be generated.</p>
+        <p class="ss-small ss-mb-5">This is the API write access token, which provides full access to modify your data.<br> <b class="ss-red">Treat it like a password and keep it safe.</b><br> If left empty or set to "0" (zero), a new token will be generated.</p>
         <label for="rate" class="ss-label">Rate Limit</label>
         <input type="number" id="rate" name="api[rate]" value="' . $api[ 'rate' ] . '" class="ss-input ss-mobile ss-w-6 ss-mx-auto">
         <p class="ss-small ss-mb-5">Prevent API abuse by setting the maximum number of requests allowed per minute.<br> If you don\'t want to limit the usage, simply leave this field empty or set it to "0" (zero).</p>
@@ -567,7 +551,7 @@ function api_plugins(): void {
         array(
           'code' => 200,
           'status' => false,
-          'message' => 'Plugin' . ( $App->installed( $plugin ) ? ' already installed' : 'not installed' ),
+          'message' => 'Plugin' . ( $App->installed( $plugin ) ? ' already installed' : ' not installed' ),
           'data' => array(
             'plugin' => $plugin
           )
@@ -731,7 +715,7 @@ function api_reference(): void {
 
 /**
  * Alias of "api_route_match"
- * @param string $route
+ * @param ?string $route
  * @param ?array $match
  * @return bool
  */
@@ -742,17 +726,7 @@ function is_api( ?string $route = null, ?array &$match = null ): bool {
 }
 
 /**
- * Apply translation to text
- * @param string $text
- * @return string
- */
-function api_text( string $text ): string {
-  global $App;
-  return $App->get_filter( $text, 'l10n', 'api' );
-}
-
-/**
- * Request Method
+ * Request method
  * @return string
  */
 function api_method(): string {
@@ -778,17 +752,23 @@ function api_route_match( string $route, ?array &$match = null ) {
  */
 function api_request(): array {
   $raw_request = file_get_contents( 'php://input' );
-  $request =      json_decode( $raw_request, true );
+  $request     = json_decode( $raw_request, true );
   if ( json_last_error() !== JSON_ERROR_NONE ) {
     parse_str( $raw_request, $request );
   }
-  $method = api_method();
-  if ( 'GET' === $method || 'DELETE' === $method ) {
-    $request = array_merge( $_GET, $request );
-  } else if ( 'POST' === $method ) {
-    $request = array_merge( $_POST, $request );
-  } else if ( 'PUT' !== $method ) {
-    $request = array();
+  switch ( api_method() ) {
+    case 'GET':
+    case 'DELETE':
+      $request = array_merge( $_GET, $request );
+      break;
+    case 'POST':
+      $request = array_merge( $_POST, $request );
+      break;
+    case 'PUT':
+      break;
+    default:
+      $request = array();
+      break;
   }
   return api_exchange_filter( $request, true );
 }
