@@ -1,10 +1,17 @@
-> <p style="text-color:red">NOT STABLE, Still under development.</p>
-
-
 # API
-The BoidCMS API plugin is designed to provide an easy way to integrate other systems with BoidCMS powered sites.     
-With this plugin, you can retrieve or update data from the database with a simple HTTP request.
+A RESTful API for your BoidCMS powered websites.
 
 ## Install
-- Download the zip file of the plugin on this repo.
-- Follow this [steps to install](https://boidcms.github.io/#/plugins/).
+- Download the zip file of the plugin from this repo.
+- Extract the contents of the zip file.
+- Create a folder `api` in the `plugins/` directory on your server.
+- Copy the `plugin.php` file to the `api` folder.
+- Follow the [steps to activate and configure](https://boidcms.github.io/#/plugins/configure) the plugin.
+
+
+## Compatibility
+This plugin works on any version of BoidCMS.
+
+
+
+
