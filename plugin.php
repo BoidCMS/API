@@ -123,7 +123,7 @@ function api_head(): string {
   global $App;
   $base = $App->url( 'api/' . API_VERSION . '/' );
   $data = ( $App->data()[ 'pages' ][ $App->page ] ?? array() );
-  $endpoint = ( empty( $data ) ? '' : 'pages?page=' . $App->page );
+  $endpoint = ( empty( $data ) ? '' : 'pages?slug=' . $App->page );
   $format = '<link rel="alternate api" type="application/json" href="%s%s">';
   return sprintf( $format, $base, $endpoint );
 }
@@ -184,18 +184,18 @@ function api_pages(): void {
   $data = $App->data();
   $method = api_method();
   $inputs = api_request();
-  $page = api_input_string( 'page' );
-  $page = $App->esc_slug( $page );
+  $slug = api_input_string( 'slug' );
+  $slug = $App->esc_slug( $slug );
   if ( 'GET' === $method ) {
     $raw = api_input_bool( 'raw' );
-    if ( isset( $data[ 'pages' ][ $page ] ) ) {
-      if ( $raw ) $fields = $data[ 'pages' ][ $page ];
-      $fields ??= api_page_fields( $page );
+    if ( isset( $data[ 'pages' ][ $slug ] ) ) {
+      if ( $raw ) $fields = $data[ 'pages' ][ $slug ];
+      $fields ??= api_page_fields( $slug );
       api_response(
         array(
           'code' => 200,
           'status' => true,
-          'message' => sprintf( 'Page "%s"', $page ),
+          'message' => sprintf( 'Page "%s"', $slug ),
           'data' => api_field_selection( $fields )
         )
       );
@@ -203,6 +203,7 @@ function api_pages(): void {
     if ( ! $raw ) {
       $slugs = array_keys( $data[ 'pages' ] );
       $fields = array_map( 'api_page_fields', $slugs );
+      $fields = array_combine( $slugs, $fields );
     }
     $fields ??= $data[ 'pages' ];
     api_response(
@@ -248,29 +249,29 @@ function api_pages(): void {
       )
     );
   } else if ( 'PUT' === $method ) {
-    if ( ! isset( $data[ 'pages' ][ $page ] ) ) {
+    if ( ! isset( $data[ 'pages' ][ $slug ] ) ) {
       api_response(
         array(
           'code' => 404,
           'status' => false,
           'message' => 'Page does not exist',
           'data' => array(
-            'slug' => $page
+            'slug' => $slug
           )
         )
       );
     } else {
-      $pub = $data[ 'pages' ][ $page ][ 'pub' ];
+      $pub = $data[ 'pages' ][ $slug ][ 'pub' ];
       $inputs[ 'data' ] = api_input_array( 'data' );
       $inputs[ 'data' ][ 'pub' ] = api_data_input_bool( 'pub', $pub );
-      if ( $App->update_page( $page, $page, $inputs[ 'data' ] ) ) {
+      if ( $App->update_page( $slug, $slug, $inputs[ 'data' ] ) ) {
         api_response(
           array(
             'code' => 200,
             'status' => true,
             'message' => 'Page updated',
             'data' => array(
-              'slug' => $page
+              'slug' => $slug
             )
           )
         );
@@ -281,32 +282,32 @@ function api_pages(): void {
           'status' => false,
           'message' => 'Page not updated',
           'data' => array(
-            'slug' => $page
+            'slug' => $slug
           )
         )
       );
     }
   } else if ( 'DELETE' === $method ) {
-    if ( ! isset( $data[ 'pages' ][ $page ] ) ) {
+    if ( ! isset( $data[ 'pages' ][ $slug ] ) ) {
       api_response(
         array(
           'code' => 404,
           'status' => false,
           'message' => 'Page does not exist',
           'data' => array(
-            'slug' => $page
+            'slug' => $slug
           )
         )
       );
     } else {
-      if ( $App->delete_page( $page ) ) {
+      if ( $App->delete_page( $slug ) ) {
         api_response(
           array(
             'code' => 200,
             'status' => true,
             'message' => 'Page deleted',
             'data' => array(
-              'slug' => $page
+              'slug' => $slug
             )
           )
         );
@@ -317,7 +318,7 @@ function api_pages(): void {
           'status' => false,
           'message' => 'Page not deleted',
           'data' => array(
-            'slug' => $page
+            'slug' => $slug
           )
         )
       );
@@ -808,7 +809,7 @@ function api_page_fields( string $slug ): array {
   $fields = array();
   $pages = $App->data()[ 'pages' ];
   foreach ( $pages[ $slug ] as $index => $value ) {
-    $fields[ $slug ][ $index ] = $App->page( $index, $slug );
+    $fields[ $index ] = $App->page( $index, $slug );
   }
   return $fields;
 }
@@ -842,7 +843,7 @@ function api_theme_info( string $theme ): array {
   return array(
     'name' => ucwords( $name ),
     'active' => ( $current === $theme ),
-    'slug' => $theme
+    'folder' => $theme
   );
 }
 
@@ -858,7 +859,7 @@ function api_plugin_info( string $plugin ): array {
   return array(
     'name' => ucwords( $name ),
     'active' => $installed,
-    'slug' => $plugin
+    'folder' => $plugin
   );
 }
 
