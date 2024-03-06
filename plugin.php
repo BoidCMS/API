@@ -5,7 +5,7 @@
  *
  * @package Plugin_API
  * @author Shuaib Yusuf Shuaib
- * @version 0.1.0
+ * @version 0.2.0
  */
 
 // Ensure the plugin is installed properly
@@ -552,7 +552,7 @@ function api_plugins(): void {
         array(
           'code' => 200,
           'status' => false,
-          'message' => 'Plugin' . ( $App->installed( $plugin ) ? ' already installed' : ' not installed' ),
+          'message' => 'Plugin ' . ( $App->installed( $plugin ) ? 'already installed' : 'not installed' ),
           'data' => array(
             'plugin' => $plugin
           )
@@ -613,15 +613,32 @@ function api_settings(): void {
         'status' => true,
         'message' => 'Settings',
         'data' => api_field_selection(
-          $data[ 'site' ]
+          api_hide_fields(
+            $data[ 'site' ],
+            array(
+              'username',
+              'password',
+              'api' => array(
+                'write'
+              )
+            )
+          )
         )
       )
     );
   } else if ( 'PUT' === $method ) {
     $inputs = api_request();
+    $old_theme = $data[ 'site' ][ 'theme' ];
     $inputs[ 'data' ] = api_input_array( 'data' );
     $data[ 'site' ] = array_merge( $data[ 'site' ], $inputs[ 'data' ] );
+    $keys = array_keys( $data[ 'site' ] );
+    $data[ 'site' ] = array_map( fn ( $value, $key ) => in_array( $key, [ 'lang', 'title', 'subtitle', 'keywords', 'descr', 'footer' ] ) ? htmlspecialchars( $value, ENT_QUOTES | ENT_HTML5, 'UTF-8', false ) : $value, $data[ 'site' ], $keys );
+    $data[ 'site' ] = array_combine( $keys, $data[ 'site' ] );
     if ( $App->save( $data ) ) {
+      $new_theme = $data[ 'site' ][ 'theme' ];
+      if ( $new_theme !== $old_theme ) {
+        $App->get_action( 'change_theme', $new_theme );
+      }
       api_response(
         array(
           'code' => 200,
@@ -873,7 +890,7 @@ function api_pagination( array $data ): array {
   $max = $App->get( 'api' )[ 'limit' ];
   $offset  = api_input_integer( 'offset', 0 );
   $limit = api_input_integer( 'limit', $max );
-  $limit  = ( $limit > $max ? $max : $limit );
+  $limit =  ( $limit > $max ? $max : $limit );
   $args = [ $data, $offset, $limit, true ];
   return array_slice( ...$args );
 }
@@ -889,6 +906,31 @@ function api_field_selection( array $data ): array {
   foreach ( $data as $index => $value ) {
     if ( ! in_array( $index, $fields ) ) {
       unset( $data[ $index ] );
+    }
+  }
+  return $data;
+}
+
+/**
+ * Hide sensitive data
+ * @param array $data
+ * @param array $fields
+ * @param bool $allow_auth
+ * @return array
+ */
+function api_hide_fields( array $data, array $fields, bool $allow_auth = true ): array {
+  global $App;
+  $api = $App->get( 'api' );
+  $auth = api_input_string( 'auth' );
+  $valid = hash_equals( $api[ 'write' ], $auth );
+  if ( $allow_auth && $valid ) return $data;
+  foreach ( $fields as $index => $field ) {
+    if ( is_array( $field ) ) {
+      $data[ $index ] = api_hide_fields( $data[ $index ], $field );
+    } else {
+      if ( isset( $data[ $field ] ) ) {
+        $data[ $field ] = '<hidden>';
+      }
     }
   }
   return $data;
@@ -986,8 +1028,9 @@ function api_data_input_bool( string $index, bool $default = false ): bool {
  */
 function api_rate_limit(): void {
   global $App;
+  $slug = ( $App->page === 'api/' . API_VERSION . '/' ? $App->page : rtrim( $App->page, '/' ) );
   if ( 0 === ( $limit = $App->get( 'api' )[ 'rate' ] ) ) return;
-  $data = ( $_SESSION[ 'api' ][ $App->page ] ?? null );
+  $data = ( $_SESSION[ 'api' ][ $slug ] ?? null );
   $data = ( $data ?? [ 'hits' => 0, 'time' => time() ] );
   $elapsed = ( time() - $data[ 'time' ] );
   if ( $elapsed > 60 ) {
@@ -1010,7 +1053,7 @@ function api_rate_limit(): void {
       );
     }
   }
-  $_SESSION[ 'api' ][ $App->page ] = $data;
+  $_SESSION[ 'api' ][ $slug ] = $data;
 }
 
 /**
