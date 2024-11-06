@@ -13,7 +13,7 @@ if ( 'api' !== basename( __DIR__ ) ) return;
 
 global $App;
 define( 'API_VERSION', 'v1' );
-define( 'API_PLUGIN_VERSION', '0.1.0' );
+define( 'API_PLUGIN_VERSION', '0.2.0' );
 $App->set_action( 'install', 'api_install' );
 $App->set_action( 'uninstall', 'api_uninstall' );
 $App->set_action( 'slug_taken', 'api_routes' );
