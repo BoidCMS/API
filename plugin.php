@@ -5,7 +5,7 @@
  *
  * @package Plugin_API
  * @author Shuaib Yusuf Shuaib
- * @version 0.2.0
+ * @version 0.2.1
  */
 
 // Ensure the plugin is installed properly
@@ -13,7 +13,7 @@ if ( 'api' !== basename( __DIR__ ) ) return;
 
 global $App;
 define( 'API_VERSION', 'v1' );
-define( 'API_PLUGIN_VERSION', '0.2.0' );
+define( 'API_PLUGIN_VERSION', '0.2.1' );
 $App->set_action( 'install', 'api_install' );
 $App->set_action( 'uninstall', 'api_uninstall' );
 $App->set_action( 'slug_taken', 'api_routes' );
@@ -616,9 +616,11 @@ function api_settings(): void {
           api_hide_fields(
             $data[ 'site' ],
             array(
+              'admin',
               'username',
               'password',
               'api' => array(
+                'read',
                 'write'
               )
             )
@@ -924,9 +926,10 @@ function api_hide_fields( array $data, array $fields, bool $allow_auth = true ):
   $auth = api_input_string( 'auth' );
   $valid = hash_equals( $api[ 'write' ], $auth );
   if ( $allow_auth && $valid ) return $data;
+  $fields = $App->get_filter( $fields, 'api_hide_fields' );
   foreach ( $fields as $index => $field ) {
     if ( is_array( $field ) ) {
-      $data[ $index ] = api_hide_fields( $data[ $index ], $field );
+      $data[ $index ] = api_hide_fields( $data[ $index ], $field, $allow_auth );
     } else {
       if ( isset( $data[ $field ] ) ) {
         $data[ $field ] = '<hidden>';
